@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="de"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Gegenteile-Spiel</title>
+<style>
+:root{--bg:#fff8e1;--card:#fff;--ink:#222;--g:#2e9e5b;--r:#d63b3b;--b:#4a90d9;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1d1b16;--card:#2a2820;--ink:#f3efe3}}
+:root[data-theme="dark"]{--bg:#1d1b16;--card:#2a2820;--ink:#f3efe3}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Trebuchet MS",Arial,sans-serif;text-align:center}
+.tabs{display:flex;gap:8px;padding:10px;justify-content:center}
+.tabs button,.btn{font:inherit;font-weight:700;border:0;border-radius:14px;padding:12px 18px;background:var(--b);color:#fff;font-size:18px}
+.tabs button.off{background:var(--card);color:var(--ink);border:2px solid var(--b)}
+.pane{display:none;padding:8px 12px 24px;max-width:900px;margin:auto}.pane.on{display:block}
+.big{font-size:min(34vw,220px);line-height:1.1}
+.word{font-size:min(14vw,90px);font-weight:800;color:var(--g)}
+.neg .word{color:var(--r)}
+.hint{font-size:20px;direction:rtl;background:var(--card);border-radius:12px;padding:8px 12px;margin:10px auto;max-width:520px}
+.bar{height:14px;border-radius:7px;background:var(--card);overflow:hidden;max-width:520px;margin:10px auto}
+.bar i{display:block;height:100%;background:var(--g);width:100%}
+.bar.go i{animation:sh 6s linear forwards}@keyframes sh{to{width:0}}
+.stop{font-size:34px;font-weight:800;color:var(--r);min-height:44px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+.c{aspect-ratio:1;border-radius:14px;border:3px solid var(--b);background:var(--b);color:#fff;font-size:34px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;user-select:none}
+.c span{font-size:min(4.5vw,26px);font-weight:700}
+.c.up{background:var(--card);color:var(--ink)}
+.c.done{background:var(--g);color:#fff;border-color:var(--g)}
+.c.neg.up{border-color:var(--r)}
+.score{display:flex;gap:10px;justify-content:center;margin:8px 0;font-size:22px;font-weight:800}
+.score div{padding:8px 16px;border-radius:12px;background:var(--card);border:3px solid transparent}
+.score div.act{border-color:var(--g)}
+@media(min-width:700px){.grid{grid-template-columns:repeat(6,1fr)}}
+</style></head><body>
+<div class="tabs"><button id="t1" onclick="tab(1)">🎭 Pantomime</button><button id="t2" class="off" onclick="tab(2)">🃏 Memory</button></div>
+
+<div class="pane on" id="p1">
+ <div id="pm" class="">
+  <div class="big" id="em">🤔</div>
+  <div class="word" id="wd">Bereit?</div>
+ </div>
+ <div class="bar" id="bar"><i></i></div>
+ <div class="stop" id="st"></div>
+ <button class="btn" style="font-size:24px;padding:14px 28px" onclick="nextW()">Nächstes Wort ▶</button>
+ <button class="btn" style="background:var(--g)" onclick="showOpp()">Gegenteil zeigen ↔</button>
+ <p id="cnt" style="opacity:.6"></p>
+</div>
+
+<div class="pane" id="p2">
+ <div class="score"><div id="sa">Team A: 0</div><div id="sb">Team B: 0</div></div>
+ <div id="msg" style="min-height:28px;font-size:20px;font-weight:700"></div>
+ <div class="grid" id="grid"></div>
+ <p><button class="btn" onclick="initMem()">🔄 Neu mischen</button></p>
+</div>
+
+<script>
+var D=[
+["gut","👍","schlecht","👎","ابهام لفوق / لتحت وابتسامة / زعل"],
+["lang","📏","kurz","🤏","ايديك متفتحة كبير / متقاربة صغيرة"],
+["jung","👶","alt","👴","اتصرف زي طفل / ضهرك محني وعصاية"],
+["cool","😎","blöd","🤪","نضارة شمس وثقة / وش مضحك وعين متلخبطة"],
+["süß","🍬","bitter","☕","ابتسامة وحلو / وشك يتكرمش من المرارة"],
+["klug","🧠","dumm","🥴","اشاره بصباعك على دماغك / ايدك على راسك محتار"],
+["neu / modern","📱","alt","☎️","اكتب على موبايل / لف قرص تليفون قديم"],
+["teuer","💎","billig","🪙","اتصرف كأنك بتدفع كتير / تدفع قرش"],
+["groß","🐘","klein","🐭","وسّع ايديك وقف على طراطيفك / انكمش وانزل"],
+["toll / interessant","🤩","langweilig","😴","ايدك فوق وانبهار / اتثائب ونام"],
+["weit","🚀","nah","🤝","ايديك بعيد عن بعض / ايديك قريب من بعض"],
+["fleißig","🐝","faul","🦥","اتحرك بسرعة وشغل / اتمدد وبطء شديد"]];
+var deck=[],pos=0,cur=null;
+function sh(a){for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t}return a}
+function tab(n){for(var i=1;i<3;i++){document.getElementById("p"+i).classList.toggle("on",i==n);document.getElementById("t"+i).classList.toggle("off",i!=n)}}
+function build(){deck=[];D.forEach(function(d){deck.push({w:d[0],e:d[1],o:d[2],oe:d[3],h:d[4].split(" / ")[0],neg:0,opp:{w:d[2],e:d[3],h:d[4].split(" / ")[1]}});deck.push({w:d[2],e:d[3],o:d[0],oe:d[1],h:d[4].split(" / ")[1],neg:1,opp:{w:d[0],e:d[1],h:d[4].split(" / ")[0]}})});sh(deck);pos=0}
+function show(x){document.getElementById("em").textContent=x.e;var w=document.getElementById("wd");w.textContent=x.w;document.getElementById("pm").className=x.neg?"neg":"";document.getElementById("st").textContent="";var b=document.getElementById("bar");b.className="bar";void b.offsetWidth;b.className="bar go";setTimeout(function(){if(cur===x)document.getElementById("st").textContent="🤫 STOPP! Einfrieren!"},6000)}
+function nextW(){if(!deck.length||pos>=deck.length)build();cur=deck[pos++];show(cur);document.getElementById("cnt").textContent=pos+" / "+deck.length}
+function showOpp(){if(!cur)return;var o=cur.opp;cur={w:o.w,e:o.e,h:o.h,neg:!cur.neg,opp:{w:cur.w,e:cur.e,h:cur.h}};show(cur)}
+// memory
+var cards=[],first=null,lock=false,turn=0,sc=[0,0],left=0;
+function initMem(){cards=[];D.forEach(function(d,i){cards.push({id:i,w:d[0],e:d[1],n:0});cards.push({id:i,w:d[2],e:d[3],n:1})});sh(cards);first=null;lock=false;turn=0;sc=[0,0];left=12;
+ var g=document.getElementById("grid");g.innerHTML="";cards.forEach(function(c,i){var d=document.createElement("div");d.className="c";d.innerHTML="❓";d.onclick=function(){flip(i,d)};c.el=d;g.appendChild(d)});upd("Team A beginnt!")}
+function upd(m){document.getElementById("sa").textContent="Team A: "+sc[0];document.getElementById("sb").textContent="Team B: "+sc[1];document.getElementById("sa").className=turn==0?"act":"";document.getElementById("sb").className=turn==1?"act":"";document.getElementById("msg").textContent=m||""}
+function face(c,up){c.el.className="c"+(up?" up":"")+(up&&c.n?" neg":"");c.el.innerHTML=up?c.e+"<span>"+c.w+"</span>":"❓"}
+function flip(i,d){var c=cards[i];if(lock||c.done||c===first)return;face(c,1);
+ if(!first){first=c;return}
+ if(first.id==c.id){first.done=c.done=true;first.el.className=c.el.className="c done";sc[turn]++;left--;first=null;
+  upd(left?"✅ Super! Nochmal!":(sc[0]==sc[1]?"Unentschieden! 🤝":"🏆 Team "+(sc[0]>sc[1]?"A":"B")+" gewinnt!"))}
+ else{lock=true;var f=first;first=null;upd("❌ Nein, sag das Gegenteil laut!");setTimeout(function(){face(f,0);face(c,0);turn=1-turn;lock=false;upd("Team "+(turn?"B":"A")+" ist dran")},1600)}}
+build();initMem();
+</script></body></html>
